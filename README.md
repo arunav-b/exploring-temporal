@@ -4,21 +4,29 @@
 
 Conceptually, a workflow defines a sequence of steps. With Temporal, those steps are defined by writing code, known as a _**Workflow Definition**_, and are carried out by running that code, which results in a **_Workflow Execution_**.
 
+<br>
+<br>
 
 ## Temporal Architecture Overview
 
 ### Temporal Server
 ![temporalServer](/images/temporal-server-diagram.png)
 
-### Communication between Temporal Cluster and Application using Temporal
+<br>
+
+### Communication between Temporal Cluster and Temporal Application
 
 ![communications](/images/communication-v2.png)
 
 Clients communicate with the Temporal Server by issuing requests to this Frontend Service. The Frontend Service then communicates with backend services, as necessary to fulfill the request, and then returns a response to the client. Communication to and within the Cluster is done using gRPC, a popular high-performance open source RPC framework originally developed at Google and now part of the Cloud Native Computing Foundation ecosystem. The messages themselves are encoded using Protocol Buffers, an open source serialization mechanism also originally developed at Google.
 
+<br>
+
 ### Temporal Cluster
 
 ![temporalCluster](/images/temporal-cluster-diagram.png)
+
+<br>
 
 ### Workers
 
