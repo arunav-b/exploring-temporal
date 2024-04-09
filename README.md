@@ -37,3 +37,111 @@ The entity responsible for executing your code is known as a Worker, and it's co
 Since the Worker uses a Temporal Client to communicate with the Temporal Cluster, each machine running a Worker will require connectivity to the Cluster’s Frontend Service, which listens on TCP port 7233 by default.
 
 ![Workers](/images/temporal-platform-diagram.png)
+
+<br>
+<br>
+
+## Writing a Workflow Definition
+
+There are two steps for turning a Java interface and implementation into a **_Workflow Definition_**:
+
+1. Import the `io.temporal.workflow.WorkflowInterface` and `io.temporal.workflow.WorkflowMethod` annotation types provided by the SDK
+2. Annotate the interface with `@WorkflowInterface`
+3. Annotate the method signature with `@WorkflowMethod`
+
+<br>
+
+## Initializing Worker
+
+### Role of a Worker
+
+- Workers execute your Workflow code. 
+- The Worker itself is provided by the Temporal SDK, but your application will include code to configure and run it. 
+- When that code executes, the Worker establishes a persistent connection to the Temporal Cluster and begins polling a Task Queue on the Cluster, seeking work to perform.
+
+### Initializing a Worker
+
+There are typically three things you need in order to configure a Worker:
+
+1. A **Temporal Client**, which is used to communicate with the Temporal Cluster
+2. The name of a **Task Queue**, which is maintained by the Temporal Server and polled by the Worker
+3. The name of the **Workflow Definition interface**, used to register the Workflow implementation with the Worker
+
+```java
+package io.temporal.learn;
+
+import io.temporal.client.WorkflowClient;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
+
+public class GreetingWorker {
+
+    public static void main(String[] args) {
+
+        // Represents the GRPC connection to the Temporal Cluster.
+        // For Temporal Cluster is running on the same machine, we'll use newLocalServiceStubs(). 
+        // When Temporal Cluster is on a dedicated server, we'll use newServiceStubs(WorkflowServiceStubsOptions options)
+        WorkflowServiceStubs service = WorkflowServiceStubs.newLocalServiceStubs();
+        
+        // Create a Temporal Client using WorkflowServiceStubs
+        WorkflowClient client = WorkflowClient.newInstance(service);
+        
+        // Creates one or more Worker instances
+        WorkerFactory factory = WorkerFactory.newInstance(client);
+
+        // Specify the name of the Task Queue that this Worker should poll
+        Worker worker = factory.newWorker("greeting-tasks");
+
+        // Specify which Workflow implementations this Worker will support
+        worker.registerWorkflowImplementationTypes(GreetingImpl.class);
+
+        // Begin running the Worker
+        factory.start();
+    }
+}
+```
+
+### Lifetime of a Worker
+
+The lifetime of the Worker and the duration of a Workflow Execution are unrelated. The start function used to start this Worker is a blocking function that doesn't stop unless it is terminated or encounters a fatal error. The Worker's process may last for days, weeks, or longer. If the Workflows it handles are relatively short, then a single Worker might execute thousands or even millions of them during its lifetime. On the other hand, a Workflow can run for years, while the server where a Worker process is running might be rebooted after a few months by an administrator doing maintenance. If the Workflow Type was registered with other workers, one or more of them will automatically continue where the original Worker left off. If there are no other Workers available, then the Workflow Execution will continue where it left off as soon as the original Worker is restarted. In either case, the downtime will not cause the Workflow Execution to fail.
+
+<br>
+
+## Code to start a Workflow
+
+```java
+package helloworkflow;
+
+import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+
+public class Starter {
+    public static void main(String[] args) throws Exception {
+
+        WorkflowServiceStubs service = WorkflowServiceStubs.newLocalServiceStubs();
+        WorkflowClient client = WorkflowClient.newInstance(service);
+        
+        WorkflowOptions options = WorkflowOptions.newBuilder()
+                    .setWorkflowId("my-first-workflow")
+                    .setTaskQueue("greeting-tasks")
+                    .build();
+       
+        // Creating a new Workflow instance
+        HelloWorkflowWorkflow workflow = client.newWorkflowStub(HelloWorkflowWorkflow.class, options);
+        
+        // Blocking call on the Workflow
+        String greeting = workflow.greetSomeone(args[0]);
+        
+        // Retrieving information of the workflow when execution is complete
+        String workflowId = WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId();
+
+        System.out.println(workflowId + " " + greeting);
+
+    }
+}
+```
+
+> The code used to create and configure the `client` here is identical to the code used during Worker initialization. You can structure your application such that the same client is shared between those two parts of the code. In fact, this is common for real-world Temporal applications,
