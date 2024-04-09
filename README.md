@@ -68,13 +68,6 @@ There are typically three things you need in order to configure a Worker:
 3. The name of the **Workflow Definition interface**, used to register the Workflow implementation with the Worker
 
 ```java
-package io.temporal.learn;
-
-import io.temporal.client.WorkflowClient;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
-
 public class GreetingWorker {
 
     public static void main(String[] args) {
@@ -111,13 +104,6 @@ The lifetime of the Worker and the duration of a Workflow Execution are unrelate
 ## Code to start a Workflow
 
 ```java
-package helloworkflow;
-
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowStub;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-
 public class Starter {
     public static void main(String[] args) throws Exception {
 
@@ -144,4 +130,64 @@ public class Starter {
 }
 ```
 
-> The code used to create and configure the `client` here is identical to the code used during Worker initialization. You can structure your application such that the same client is shared between those two parts of the code. In fact, this is common for real-world Temporal applications,
+> NOTE:
+> 1. The code used to create and configure the `client` here is identical to the code used during Worker initialization. You can structure your application such that the same client is shared between those two parts of the code. In fact, this is common for real-world Temporal applications.
+> 2. Workflow code must be **_deterministic_**, and must produce the same output each time, given the same input. 
+
+<br>
+
+## What are activities ?
+
+- Activities encapsulate business logic that is prone to failure. Unlike the Workflow Definition, there is no requirement for an Activity Definition to be deterministic.
+- While Activities are executed as part of Workflow Execution, they have an important characteristic: they're retried if they fail.
+- The code within that Activity Definition will be executed, retried if necessary, and the Workflow will continue its progress once the Activity completes successfully.
+
+### Activity Definition
+
+- The interface must be annotated with `@ActivityInterface`.
+- Optionally, you can annotate your methods with `@ActivityMethod`, although this is not required unless you are attempting to specify optional arguments to the Activity.
+
+```java
+@ActivityInterface
+public interface GreetingActivities {
+
+    public String greetInSpanish(String name);
+}
+```
+
+### Registering Activities
+
+You may recall that you must register your Workflows when initializing the Worker. You must also perform a similar step for Activities. The process for registering the Activity is slightly different to that for registering a Workflow, with the only difference being the name of the function you call to register it, and by passing in an instance of the Activity implementation to the registration method.
+
+```java
+public class GreetingWorker {
+    public static void main(String[] args) {
+
+        WorkflowServiceStubs service = WorkflowServiceStubs.newLocalServiceStubs();
+        WorkflowClient client = WorkflowClient.newInstance(service);
+        WorkerFactory factory = WorkerFactory.newInstance(client);
+        Worker worker = factory.newWorker("greeting-tasks");
+        worker.registerWorkflowImplementationTypes(GreetingWorkflowImpl.class);
+
+        // Registering an activity
+        worker.registerActivitiesImplementations(new GreetingActivitiesImpl());
+
+        factory.start();
+    }
+}
+```
+
+### Specifying Activity Options 
+The first step to executing an Activity as part of your Workflow is to specify the options that govern its execution. The following code would be written in the implementation of the Workflow Definition.
+
+```java
+ActivityOptions options = ActivityOptions.newBuilder()
+        .setStartToCloseTimeout(Duration.ofSeconds(5))
+        .build();
+```
+
+### Executing Activities
+
+- Temporal Activities can be executed either synchronously or asynchronously, depending on your use case.
+- 
+
