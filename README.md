@@ -181,7 +181,7 @@ public class GreetingWorker {
 The first step to executing an Activity as part of your Workflow is to specify the options that govern its execution. The following code would be written in the implementation of the Workflow Definition.
 
 ```java
-ActivityOptions options = ActivityOptions.newBuilder()
+    ActivityOptions options = ActivityOptions.newBuilder()
         .setStartToCloseTimeout(Duration.ofSeconds(5))
         .build();
 ```
@@ -189,5 +189,71 @@ ActivityOptions options = ActivityOptions.newBuilder()
 ### Executing Activities
 
 - Temporal Activities can be executed either synchronously or asynchronously, depending on your use case.
-- 
+- To request execution of an Activity within your Workflow Definition, first call the `workflow.newActivityStub()` method, passing in the class object for your Activity Definition interface and the options (such as the Timeout described above) used to control its execution. This returns a client stub corresponding to your Activity Definition:
 
+```java
+    private final GreetingActivities activities = 
+    Workflow.newActivityStub(GreetingActivities.class, options);
+```
+
+#### Executing Activity Synchronously
+To execute the Activity synchronously you will call the method from the Workflow Definition and store the result in a variable. Each of these calls are blocking, meaning that the Workflow Execution will wait for the first method, `greetInSpanish`, to complete before attempting to execute `farewellInSpanish`.
+
+```java
+    String spanishGreeting = activities.greetInSpanish(name);
+    String spanishFarewell = activities.farewellInSpanish(name);
+```
+
+Putting it all together:
+
+```java
+public class GreetingWorkflowImpl implements GreetingWorkflow {
+
+    ActivityOptions options = ActivityOptions.newBuilder()
+        .setStartToCloseTimeout(Duration.ofSeconds(5))
+        .build();
+
+    private final GreetingActivities activities = 
+            Workflow.newActivityStub(GreetingActivities.class, options);
+
+    @Override
+    public String greetSomeone(String name){
+        String spanishGreeting = activities.greetInSpanish(name);
+        String spanishFarewell = activities.farewellInSpanish(name);
+
+        return "\n" + spanishGreeting + "\n" + spanishFarewell;
+    }
+}
+```
+
+
+#### Executing Activity Asynchronously
+
+- To execute the Activity asynchronously you will use Temporal's `Async` and `Promise` implementations.
+- We pass in the Activity Method from the stubbed instance of our implementation and the variable name to Async.function. This will begin execution of the Activity and not wait for the Activity to complete before continuing execution. Because of this you will need to retrieve the result of the execution at a later point.
+
+```java
+...
+
+private final GreetingActivities activities = 
+    Workflow.newActivityStub(GreetingActivities.class, options);
+
+...
+
+Promise<String> hello = Async.function(activities::greetInSpanish, name);
+Promise<String> bye = Async.function(activities::farewellInSpanish, name);
+```
+
+- The Workflow does not execute the Activity. That is, it does not invoke the Activity Function. Instead, it makes a request to the Temporal Cluster, asking it to schedule execution of the Activity.
+- With asynchronous Activity Execution, you write separate statements to perform each operation. The call to Async.function returns a Promise, since the result returned by the Activity won't be available until the Activity has completed.
+- To access the value from this Promise, you must first define a variable of the type corresponding to the value. Next, you will call the get function on the variable used to store the Promise. Be sure to check for an error before attempting to use the result, as this variable will not be assigned the value if the Activity Execution failed.
+
+```java
+String greeting;
+
+try {
+    greeting = hello.get();
+} catch(RuntimeExeption e) {
+    // handle the failure as dictated by your business logic
+}
+```
