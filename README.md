@@ -267,17 +267,17 @@ try {
 - The use of Workflow APIs in the function is what generates **Commands**. Commands tell the Cluster which Events to create and add to the Workflow Execution's **Event History**.
 - When a Workflow Function executes, the Commands that are emitted are compared with the existing Event History. If a corresponding Event already exists within the Event History that maps to the generation of that Command in the same sequence, and some specific metadata of that Command matches with some specific metadata of the Event, then the Function Execution progresses.
 
-## Reasons when workflow can be non-deterministic
+### Reasons when workflow can be non-deterministic
 
 If a generated Command doesn't match what it needs to in the existing Event History, then the Workflow Execution returns a non-deterministic error. The following are the two reasons why a Command might be generated out of sequence or the wrong Command might be generated altogether:
 1. Code changes are made to a Workflow Definition that is in use by a running Workflow Execution.
 2. There is intrinsic non-deterministic logic (such as inline random branching).
 
-### 1. Code changes
+#### 1. Code changes
 
 The Workflow Definition can change in very limited ways once there is a Workflow Execution depending on it. To alleviate non-deterministic issues that arise from code changes, recommendation is to use Workflow Versioning.
 
-### 2. Instrinsic non-deterministic logic
+#### 2. Instrinsic non-deterministic logic
 
 Intrinsic non-determinism is when a Workflow Function Execution might emit a different sequence of Commands on re-execution, regardless of whether all the input parameters are the same.
 
@@ -305,7 +305,7 @@ For example, a Workflow Definition can not have inline logic that branches (emit
 
 ## Handling Unreliable Worker processes
 
-_You do not handle Worker Process failure or restarts in a Workflow Definition._
+**_Do not handle Worker Process failure or restarts in a Workflow Definition._**
 
 - Workflow Function Executions are completely oblivious to the Worker Process in terms of failures or downtime.
 - The Temporal Platform ensures that the state of a Workflow Execution is recovered and progress resumes if there is an outage of either Worker Processes or the Temporal Cluster itself.
