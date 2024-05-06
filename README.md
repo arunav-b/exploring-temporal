@@ -43,7 +43,7 @@ Since the Worker uses a Temporal Client to communicate with the Temporal Cluster
 
 ## Writing a Workflow Definition
 
-There are two steps for turning a Java interface and implementation into a **_Workflow Definition_**:
+A Workflow Definition is the code that defines the Workflow. Depending on the programming language, it's typically implemented as a function or an object method and encompasses the end-to-end series of steps of a Temporal application. There are two steps for turning a Java interface and implementation into a **_Workflow Definition_**:
 
 1. Import the `io.temporal.workflow.WorkflowInterface` and `io.temporal.workflow.WorkflowMethod` annotation types provided by the SDK
 2. Annotate the interface with `@WorkflowInterface`
@@ -257,3 +257,56 @@ try {
     // handle the failure as dictated by your business logic
 }
 ```
+
+<br/>
+
+## Workflow Deterministic Constraints
+
+- A critical aspect of developing Workflow Definitions is ensuring they exhibit certain deterministic traits – that is, making sure that the **_same Commands are emitted in the same sequence_**, whenever a corresponding **Workflow Function** Execution (instance of the Function Definition) is re-executed.
+- The execution semantics of a Workflow Execution include the re-execution of a Workflow Function, which is called a **Replay**.
+- The use of Workflow APIs in the function is what generates **Commands**. Commands tell the Cluster which Events to create and add to the Workflow Execution's **Event History**.
+- When a Workflow Function executes, the Commands that are emitted are compared with the existing Event History. If a corresponding Event already exists within the Event History that maps to the generation of that Command in the same sequence, and some specific metadata of that Command matches with some specific metadata of the Event, then the Function Execution progresses.
+
+## Reasons when workflow can be non-deterministic
+
+If a generated Command doesn't match what it needs to in the existing Event History, then the Workflow Execution returns a non-deterministic error. The following are the two reasons why a Command might be generated out of sequence or the wrong Command might be generated altogether:
+1. Code changes are made to a Workflow Definition that is in use by a running Workflow Execution.
+2. There is intrinsic non-deterministic logic (such as inline random branching).
+
+### 1. Code changes
+
+The Workflow Definition can change in very limited ways once there is a Workflow Execution depending on it. To alleviate non-deterministic issues that arise from code changes, recommendation is to use Workflow Versioning.
+
+### 2. Instrinsic non-deterministic logic
+
+Intrinsic non-determinism is when a Workflow Function Execution might emit a different sequence of Commands on re-execution, regardless of whether all the input parameters are the same.
+
+For example, a Workflow Definition can not have inline logic that branches (emits a different Command sequence) based off a local time setting or a random number, or data from unreliable resources. When those APIs are used, the results are stored as part of the Event History, which means that a re-executed Workflow Function will issue the same sequence of Commands, even if there is branching involved.
+
+<br/>
+
+## Versioning workflow code
+
+- The Temporal Platform requires that Workflow code (Workflow Definitions) be deterministic in nature. This requirement means that developers should consider how they plan to handle changes to Workflow code over time.
+
+- A versioning strategy is even more important if your Workflow Executions live long enough that a Worker must be able to execute multiple versions of the same Workflow Type.
+
+- Apart from the ability to create new Task Queues for Workflow Types with the same name, the Temporal Platform provides Workflow Patching APIs and Worker Build Id–based versioning features.
+- **Patching APIs** enable the creation of logical branching inside a Workflow Definition based on a developer-specified version identifier. This feature is useful for Workflow Definition logic that needs to be updated but still has running Workflow Executions that depend on it.
+> [How to patch Workflow code](https://docs.temporal.io/dev-guide/java/versioning#patching)
+
+- Temporal **Worker Build Id-based versioning** lets you define sets of versions that are compatible with each other, and then assign a Build Id to the code that defines a Worker.
+
+> [How to version Workers](https://docs.temporal.io/dev-guide/java/versioning#worker-versioning)
+
+<br/>
+
+## Handling Unreliable Worker processes
+
+_You do not handle Worker Process failure or restarts in a Workflow Definition._
+
+- Workflow Function Executions are completely oblivious to the Worker Process in terms of failures or downtime.
+- The Temporal Platform ensures that the state of a Workflow Execution is recovered and progress resumes if there is an outage of either Worker Processes or the Temporal Cluster itself.
+- The only reason a Workflow Execution might fail is due to the code throwing an error or exception, not because of underlying infrastructure outages.
+
+
