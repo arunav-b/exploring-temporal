@@ -294,12 +294,12 @@ For example, a Workflow Definition can not have inline logic that branches (emit
 - Apart from the ability to create new Task Queues for Workflow Types with the same name, the Temporal Platform provides Workflow Patching APIs and Worker Build Id–based versioning features.
   
 - **Patching APIs** enable the creation of logical branching inside a Workflow Definition based on a developer-specified version identifier. This feature is useful for Workflow Definition logic that needs to be updated but still has running Workflow Executions that depend on it.
-  
-[How to patch Workflow code](https://docs.temporal.io/dev-guide/java/versioning#patching)
+
+     [How to patch Workflow code](https://docs.temporal.io/dev-guide/java/versioning#patching)
 
 - Temporal **Worker Build Id-based versioning** lets you define sets of versions that are compatible with each other, and then assign a Build Id to the code that defines a Worker.
 
-[How to version Workers](https://docs.temporal.io/dev-guide/java/versioning#worker-versioning)
+     [How to version Workers](https://docs.temporal.io/dev-guide/java/versioning#worker-versioning)
 
 <br/>
 
@@ -311,4 +311,16 @@ For example, a Workflow Definition can not have inline logic that branches (emit
 - The Temporal Platform ensures that the state of a Workflow Execution is recovered and progress resumes if there is an outage of either Worker Processes or the Temporal Cluster itself.
 - The only reason a Workflow Execution might fail is due to the code throwing an error or exception, not because of underlying infrastructure outages.
 
+<br/>
+
+## Workflow Type
+
+A Workflow Type is a name that maps to a Workflow Definition.
+
+- A single Workflow Type can be instantiated as multiple Workflow Executions.
+- A Workflow Type is scoped by a Task Queue. It is acceptable to have the same Workflow Type name map to different Workflow Definitions if they are using completely different Workers.
+
+![WorkflowType]()
+
+## Workflow Execution
 
